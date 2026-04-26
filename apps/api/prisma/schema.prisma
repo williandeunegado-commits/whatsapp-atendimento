@@ -1,0 +1,250 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  admin
+  supervisor
+  attendant
+}
+
+enum ConversationStatus {
+  pending
+  open
+  resolved
+}
+
+enum MessageType {
+  text
+  image
+  audio
+  video
+  document
+  sticker
+  location
+}
+
+enum MessageStatus {
+  pending
+  sent
+  delivered
+  read
+  failed
+}
+
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum SessionStatus {
+  disconnected
+  connecting
+  connected
+}
+
+enum EventType {
+  assigned
+  transferred
+  resolved
+  reopened
+  note_added
+  department_changed
+}
+
+enum UserDepartmentRole {
+  supervisor
+  attendant
+}
+
+model User {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name          String
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  role          UserRole  @default(attendant)
+  avatarUrl     String?   @map("avatar_url")
+  isActive      Boolean   @default(true) @map("is_active")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz
+
+  departments           UserDepartment[]
+  assignedConversations Conversation[]     @relation("AssignedConversations")
+  sentMessages          Message[]
+  events                ConversationEvent[]
+  supervisedDepts       Department[]       @relation("DeptSupervisors")
+
+  @@map("users")
+}
+
+model Department {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @unique
+  description String?
+  color       String   @default("#25D366")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  members       UserDepartment[]
+  conversations Conversation[]
+  quickReplies  QuickReply[]
+  supervisors   User[]           @relation("DeptSupervisors")
+
+  @@map("departments")
+}
+
+model UserDepartment {
+  userId       String             @map("user_id") @db.Uuid
+  departmentId String             @map("department_id") @db.Uuid
+  role         UserDepartmentRole @default(attendant)
+  createdAt    DateTime           @default(now()) @map("created_at") @db.Timestamptz
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@id([userId, departmentId])
+  @@map("user_departments")
+}
+
+model Contact {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone     String   @unique
+  name      String
+  avatarUrl String?  @map("avatar_url")
+  notes     String?
+  isBlocked Boolean  @default(false) @map("is_blocked")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  conversations Conversation[]
+  labels        ContactLabel[]
+
+  @@map("contacts")
+}
+
+model Label {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name      String   @unique
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  contacts      ContactLabel[]
+  conversations ConversationLabel[]
+
+  @@map("labels")
+}
+
+model ContactLabel {
+  contactId String @map("contact_id") @db.Uuid
+  labelId   String @map("label_id") @db.Uuid
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  label   Label   @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, labelId])
+  @@map("contact_labels")
+}
+
+model Conversation {
+  id             String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  contactId      String             @map("contact_id") @db.Uuid
+  departmentId   String?            @map("department_id") @db.Uuid
+  assignedUserId String?            @map("assigned_user_id") @db.Uuid
+  status         ConversationStatus @default(pending)
+  version        Int                @default(0)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz
+  resolvedAt     DateTime?          @map("resolved_at") @db.Timestamptz
+  lastMessageAt  DateTime?          @map("last_message_at") @db.Timestamptz
+
+  contact      Contact            @relation(fields: [contactId], references: [id])
+  department   Department?        @relation(fields: [departmentId], references: [id])
+  assignedUser User?              @relation("AssignedConversations", fields: [assignedUserId], references: [id])
+  messages     Message[]
+  labels       ConversationLabel[]
+  events       ConversationEvent[]
+
+  @@index([contactId])
+  @@index([departmentId, status])
+  @@index([assignedUserId, status])
+  @@index([status, lastMessageAt(sort: Desc)])
+  @@map("conversations")
+}
+
+model ConversationLabel {
+  conversationId String @map("conversation_id") @db.Uuid
+  labelId        String @map("label_id") @db.Uuid
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  label        Label        @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, labelId])
+  @@map("conversation_labels")
+}
+
+model Message {
+  id                String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId    String           @map("conversation_id") @db.Uuid
+  whatsappMessageId String?          @unique @map("whatsapp_message_id")
+  direction         MessageDirection
+  type              MessageType      @default(text)
+  content           Json
+  status            MessageStatus    @default(pending)
+  isInternalNote    Boolean          @default(false) @map("is_internal_note")
+  senderUserId      String?          @map("sender_user_id") @db.Uuid
+  quotedMessageId   String?          @map("quoted_message_id") @db.Uuid
+  mediaKey          String?          @map("media_key")
+  createdAt         DateTime         @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation  Conversation @relation(fields: [conversationId], references: [id])
+  senderUser    User?        @relation(fields: [senderUserId], references: [id])
+  quotedMessage Message?     @relation("QuotedMessage", fields: [quotedMessageId], references: [id])
+  replies       Message[]    @relation("QuotedMessage")
+
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@map("messages")
+}
+
+model ConversationEvent {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  conversationId String    @map("conversation_id") @db.Uuid
+  userId         String?   @map("user_id") @db.Uuid
+  type           EventType
+  data           Json      @default("{}")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz
+
+  conversation Conversation @relation(fields: [conversationId], references: [id])
+  user         User?        @relation(fields: [userId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_events")
+}
+
+model QuickReply {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  trigger      String   @unique
+  content      String
+  departmentId String?  @map("department_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  @@map("quick_replies")
+}
+
+model WhatsAppSession {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  provider    String        @default("baileys")
+  sessionData String?       @map("session_data") @db.Text
+  status      SessionStatus @default(disconnected)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz
+
+  @@map("whatsapp_sessions")
+}

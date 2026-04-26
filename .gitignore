@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.output/
+
+# TypeScript
+*.tsbuildinfo
+
+# Environment variables — NEVER commit .env
+.env
+.env.local
+.env.*.local
+# Allow the example file
+!.env.example
+
+# Prisma generated files
+prisma/generated/
+apps/api/prisma/generated/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V5
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Turbo cache
+.turbo/
+
+# WhatsApp session data (Baileys)
+sessions/
+.baileys/
+auth_info/
+auth_info_multi/
+
+# MinIO local data (only for docker volume, not tracked)
+minio_data/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# pnpm lock is committed intentionally — do NOT add pnpm-lock.yaml here
