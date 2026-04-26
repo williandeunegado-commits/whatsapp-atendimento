@@ -8,11 +8,12 @@
     "dev": "node --watch server.mjs"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.0",
     "@hapi/boom": "^10.0.0",
+    "@whiskeysockets/baileys": "^6.7.0",
     "cors": "^2.8.5",
     "express": "^4.19.0",
-    "qrcode": "^1.5.0",
-    "pino": "^9.0.0"
+    "localtunnel": "^2.0.2",
+    "pino": "^9.0.0",
+    "qrcode": "^1.5.0"
   }
 }

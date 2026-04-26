@@ -39,7 +39,7 @@ async function connect() {
       keys: makeCacheableSignalKeyStore(state.keys, { level: 'silent', child: () => ({ level: 'silent', child: () => ({}) }) }),
     },
     printQRInTerminal: true,
-    logger: { level: 'silent', child: () => ({ level: 'silent', info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {} }) },
+    logger: { level: 'silent', info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {}, child: () => ({ level: 'silent', info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {}, child: () => ({ level: 'silent', info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, fatal: () => {} }) }) },
     generateHighQualityLinkPreview: false,
     syncFullHistory: false,
     connectTimeoutMs: 60000,
@@ -96,6 +96,7 @@ function broadcast(data) {
 const app = express();
 app.use(cors());
 app.use(express.json());
+app.use((_req, res, next) => { res.setHeader('Bypass-Tunnel-Reminder', 'true'); next(); });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
